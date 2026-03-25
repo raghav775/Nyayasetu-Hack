@@ -23,7 +23,7 @@ def get_collection():
     )
 
 
-def chunk_text(text: str, chunk_size: int = 800, overlap: int = 100) -> list:
+def chunk_text(text: str, chunk_size: int = 180, overlap: int = 30) -> list:
     words = text.split()
     chunks = []
     start = 0
