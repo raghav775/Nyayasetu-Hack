@@ -6,6 +6,7 @@ from services.rag import search_drafts
 from services.llm import call_llm
 from utils.auth import get_current_user
 from utils.encryption import encrypt
+from services.scraper import scrape_indian_kanoon
 
 router = APIRouter()
 
@@ -20,12 +21,24 @@ def ask_legal_aid(
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
     results = search_drafts(req.question, n_results=req.n_results)
+    kanoon_results = scrape_indian_kanoon(req.question)
+    print("KANOON RESULTS:", kanoon_results)
 
-    context = "\n\n---\n\n".join([
-        f"Reference: {r['metadata']['filename']} | Category: {r['metadata']['category']}\n{r['text']}"
-        for r in results
-    ]) if results else ""
+    context_parts = []
 
+    # 🔹 Local RAG results
+    for r in results:
+        context_parts.append(
+            f"Reference: {r['metadata']['filename']} | Category: {r['metadata']['category']}\n{r['text']}"
+        )
+
+    # 🔹 Indian Kanoon results (🔥 THIS WAS MISSING)
+    for k in kanoon_results:
+        context_parts.append(
+            f"Case Title: {k['title']}\nSnippet: {k['snippet']}\nLink: {k['link']}"
+        )
+
+    context = "\n\n---\n\n".join(context_parts) if context_parts else ""
     system_prompt = """You are NyayaSetu, a knowledgeable Indian legal aid assistant.
 You provide clear, accurate, and helpful legal guidance based on Indian law.
 
@@ -51,13 +64,18 @@ Be precise, empathetic, and use clear language."""
 
 {"Relevant Legal References:" + chr(10) + context if context else "Answer based on your knowledge of Indian law."}"""
 
-    answer = call_llm(system_prompt, user_message)
+    # 🔥 SAFE LLM CALL
+    try:
+        answer = call_llm(system_prompt, user_message)
+    except Exception as e:
+        print("LLM ERROR:", e)  # 👈 shows error in terminal
+        answer = "⚠️ AI service temporarily unavailable. Please try again."
 
     try:
         log = QueryLog(
             user_id=current_user.id,
             query_type="legal_aid",
-            encrypted_query=encrypt(req.question),
+            encrypted_query=encrypt(req.question),  
         )
         db.add(log)
         db.commit()

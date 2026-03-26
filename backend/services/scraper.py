@@ -22,29 +22,27 @@ def scrape_indian_kanoon(query: str, max_results: int = 5) -> list:
             response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
-        result_divs = soup.find_all("div", class_="result")
+        result_divs = soup.find_all("div", class_="result_title")
 
         for div in result_divs[:max_results]:
-            title_tag = div.find("a")
-            snippet_tag = div.find("p")
+            a_tag = div.find("a")
 
-            if not title_tag:
+            if not a_tag:
                 continue
 
-            href = title_tag.get("href", "")
-            title = title_tag.get_text(strip=True)
+            title = a_tag.text.strip()
+            href = a_tag.get("href", "")
             link = BASE_URL + href if href.startswith("/") else href
-            snippet = snippet_tag.get_text(strip=True) if snippet_tag else ""
 
-            if title and link:
-                results.append({
-                    "title": title,
-                    "link": link,
-                    "snippet": snippet,
-                    "source": "Indian Kanoon"
-                })
+            results.append({
+                "title": title,
+                "link": link,
+                "snippet": "",
+                "source": "Indian Kanoon"
+            })
 
     except Exception as e:
         print(f"[Scraper] Error fetching Indian Kanoon: {e}")
 
     return results
+    print("SCRAPED KANOON:", results)

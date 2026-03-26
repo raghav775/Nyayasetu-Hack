@@ -33,17 +33,26 @@ def call_ollama(system_prompt: str, user_message: str) -> str:
 
 def call_llm(system_prompt: str, user_message: str) -> str:
     groq_key = os.getenv("GROQ_API_KEY", "")
+    ollama_model = os.getenv("OLLAMA_MODEL", "llama3")  # 👈 default fix
+
     use_groq = groq_key and groq_key != "your_groq_api_key_here"
 
+    # 🔥 TRY GROQ FIRST
     if use_groq:
         try:
             return call_groq(system_prompt, user_message)
         except Exception as e:
-            print(f"[LLM] Groq failed: {e}. Switching to Ollama.")
+            print(f"[LLM] Groq failed: {e}")
 
+    # 🔥 TRY OLLAMA (SAFE)
     try:
+        if not ollama_model:
+            raise Exception("No Ollama model configured")
+
         return call_ollama(system_prompt, user_message)
+
     except Exception as e:
-        raise RuntimeError(
-            f"[LLM] All providers failed. Make sure Ollama is running. Error: {e}"
-        )
+        print(f"[LLM] Ollama failed: {e}")
+
+    # 🔥 FINAL FALLBACK (NO CRASH EVER)
+    return "⚠️ AI service temporarily unavailable. Please try again."

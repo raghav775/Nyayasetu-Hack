@@ -13,3 +13,10 @@ build/
 backend/qdrant_db/
 chroma_db/
 nyayasetu.db
+backend/qdrant_db/
+chroma_db/
+nyayasetu.db
+data/
+venv/
+node_modules/
+.env

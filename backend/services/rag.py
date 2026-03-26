@@ -9,7 +9,7 @@ from qdrant_client.models import (
 from utils.document_loader import load_all_documents
 
 QDRANT_PATH = os.getenv("CHROMA_DB_PATH", "./qdrant_db")
-DRAFTS_DATA_PATH = os.getenv("DRAFTS_DATA_PATH", "../data/drafts")
+DATA_PATH = os.path.join(os.getcwd(), "data/drafts")
 COLLECTION_NAME = "nyayasetu_legal_docs"
 VECTOR_SIZE = 384
 
@@ -57,7 +57,7 @@ def ingest_documents():
         print("[RAG] To re-ingest, delete the qdrant_db folder and run again.")
         return
 
-    documents = load_all_documents(DRAFTS_DATA_PATH)
+    documents = load_all_documents(DATA_PATH)
     if not documents:
         print("[RAG] No documents found. Add RTF/DOCX files to data/drafts/")
         return
@@ -113,7 +113,10 @@ def search_drafts(query: str, n_results: int = 5, category_filter: str = None) -
         print("[RAG] Empty collection. Run ingest.py first.")
         return []
 
-    query_embedding = embedding_model.encode([query]).tolist()[0]
+    # 🔥 expand query
+    expanded_query = f"{query} Indian law IPC legal case Dowry Prohibition Act 498A"
+
+    query_embedding = embedding_model.encode([expanded_query]).tolist()[0]
 
     query_filter = None
     if category_filter:
@@ -124,16 +127,13 @@ def search_drafts(query: str, n_results: int = 5, category_filter: str = None) -
     results = qdrant.search(
         collection_name=COLLECTION_NAME,
         query_vector=query_embedding,
-        limit=n_results,
+        limit=10,
         query_filter=query_filter,
         with_payload=True,
     )
 
     output = []
     for r in results:
-        score = r.score
-        if score < 0.15:
-            continue
         output.append({
             "text": r.payload.get("text", ""),
             "metadata": {
@@ -141,7 +141,9 @@ def search_drafts(query: str, n_results: int = 5, category_filter: str = None) -
                 "category": r.payload.get("category", ""),
                 "chunk_index": r.payload.get("chunk_index", 0),
             },
-            "score": score,
+            "score": r.score,
         })
+
+    print("RAW SCORES:", [r.score for r in results])
 
     return output
